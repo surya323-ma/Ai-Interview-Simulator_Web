@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Interview Simulator</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="app">
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div class="brand-text">AI Interview Simulator
+        <span>Rehearse under the lights</span>
+      </div>
+    </div>
+    <div class="status-pill">
+      <div class="status-dot ready" id="statusDot"></div>
+      <span id="statusText">Ready</span>
+    </div>
+  </div>
+
+  <!-- ============ SETUP SCREEN ============ -->
+  <section class="screen active" id="screen-setup">
+    <div class="hero">
+      <div class="hero-eyebrow">Mock interview, on demand</div>
+      <h1>Step into the <em>spotlight</em><br>before the real thing does.</h1>
+      <p>Pick a role, answer out loud on camera, and get live coaching on eye contact, pacing, and delivery — then a full performance report at the end.</p>
+    </div>
+
+    <div class="setup-grid">
+      <div class="card">
+        <div class="card-label"><span class="num">01</span> Choose your role</div>
+        <div class="role-grid" id="roleGrid">
+          {% for role in roles %}
+          <button class="role-tile" data-role="{{ role }}">
+            <div class="role-name">{{ role }}</div>
+            <div class="role-meta">Tailored question bank</div>
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-label"><span class="num">02</span> Experience level</div>
+        <div class="pill-row" id="expRow">
+          {% for exp in experiences %}
+          <button class="pill" data-exp="{{ exp }}">{{ exp }}</button>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-label"><span class="num">03</span> Number of questions</div>
+        <div class="slider-row">
+          <input type="range" min="3" max="10" value="5" id="numQuestions">
+          <div class="slider-value" id="numQuestionsValue">5</div>
+        </div>
+      </div>
+
+      <div class="setup-footer">
+        <p class="hint">Uses your camera &amp; microphone locally in the browser. Works best in Chrome or Edge (for live speech-to-text). Nothing is recorded or saved after your session.</p>
+        <button class="btn-primary" id="startBtn" disabled>
+          Begin interview →
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ STAGE / INTERVIEW SCREEN ============ -->
+  <section class="screen" id="screen-stage">
+    <div class="stage-progress" id="stageProgress">
+      <span class="label" id="stageLabel">Question 1 / 5</span>
+    </div>
+
+    <div class="teleprompter">
+      <span class="q-eyebrow">Interviewer asks</span>
+      <span id="questionText">—</span>
+    </div>
+
+    <div class="stage-layout">
+      <div class="stage-cam" id="stageCam">
+        <video id="camVideo" autoplay muted playsinline></video>
+        <div class="cam-placeholder" id="camPlaceholder">
+          <div>Camera preview will appear here.</div>
+        </div>
+        <div class="spotlight-ring" id="spotlightRing">
+          <svg viewBox="0 0 80 80">
+            <circle class="track" cx="40" cy="40" r="34"></circle>
+            <circle class="progress" id="ringProgress" cx="40" cy="40" r="34"></circle>
+          </svg>
+          <div class="timer-text" id="ringTimerText">45</div>
+        </div>
+        <div class="cam-overlay-bottom">
+          <div class="rec-indicator" id="recIndicator" style="display:none;">
+            <div class="dot"></div> REC
+          </div>
+          <div class="caption-line" id="captionLine"></div>
+        </div>
+      </div>
+
+      <div class="console">
+        <div class="console-title">Live console</div>
+
+        <div class="meter">
+          <div class="meter-head"><span>Eye contact</span><span class="meter-value" id="eyeContactValue">0%</span></div>
+          <div class="meter-track"><div class="meter-fill" id="eyeContactFill"></div></div>
+        </div>
+
+        <div class="meter">
+          <div class="meter-head"><span>Stability</span><span class="meter-value" id="stabilityValue">0%</span></div>
+          <div class="meter-track"><div class="meter-fill" id="stabilityFill"></div></div>
+        </div>
+
+        <div class="meter">
+          <div class="meter-head"><span>Mic level</span></div>
+          <div class="audio-meter" id="audioMeter"></div>
+        </div>
+
+        <div class="guidance-note" id="guidanceNote">Get comfortable — recording starts after a short countdown.</div>
+      </div>
+    </div>
+
+    <div class="stage-controls">
+      <button class="btn-secondary" id="skipBtn" style="display:none;">Finish answer now</button>
+    </div>
+  </section>
+
+  <!-- ============ FEEDBACK SCREEN ============ -->
+  <section class="screen" id="screen-feedback">
+    <div class="feedback-card">
+      <div class="score-ring-wrap">
+        <div class="score-number mono" id="fbScore">—</div>
+      </div>
+      <div class="feedback-grade" id="fbGrade">Question feedback</div>
+
+      <div class="feedback-columns">
+        <div>
+          <div class="feedback-list-title good">✓ Strengths</div>
+          <ul class="feedback-list" id="fbStrengths"></ul>
+        </div>
+        <div>
+          <div class="feedback-list-title improve">↑ To improve</div>
+          <ul class="feedback-list" id="fbSuggestions"></ul>
+        </div>
+      </div>
+
+      <div class="feedback-continue">
+        <button class="btn-primary" id="continueBtn">Continue →</button>
+      </div>
+      <div class="auto-advance" id="autoAdvanceNote"></div>
+    </div>
+  </section>
+
+  <!-- ============ FINAL REPORT SCREEN ============ -->
+  <section class="screen" id="screen-report">
+    <div class="report-hero">
+      <div class="report-dial-wrap">
+        <svg viewBox="0 0 160 160" width="180" height="180">
+          <circle cx="80" cy="80" r="68" fill="none" stroke="#2A2F3A" stroke-width="14"></circle>
+          <circle id="reportDial" cx="80" cy="80" r="68" fill="none" stroke="#F2B84B" stroke-width="14"
+                  stroke-linecap="round" transform="rotate(-90 80 80)"></circle>
+          <text x="80" y="76" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="30" font-weight="600" fill="#F5F3EE" id="reportScoreText">0%</text>
+          <text x="80" y="98" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" fill="#8B93A7">overall</text>
+        </svg>
+      </div>
+      <div>
+        <div class="hero-eyebrow" style="justify-content:flex-start;">Performance review</div>
+        <h2 id="reportGrade">—</h2>
+        <div class="role-line" id="reportRoleLine">—</div>
+        <span class="grade-badge" id="reportBadge" style="border-color:#F2B84B;color:#F2B84B;">—</span>
+      </div>
+    </div>
+
+    <div class="report-grid">
+      <div class="card">
+        <h3 style="color:var(--teal);">✓ What worked</h3>
+        <ul class="feedback-list" id="reportStrengths"></ul>
+      </div>
+      <div class="card">
+        <h3 style="color:var(--gold);">↑ Areas to sharpen</h3>
+        <ul class="feedback-list" id="reportWeaknesses"></ul>
+      </div>
+      <div class="card chart-card">
+        <h3>Score by question</h3>
+        <canvas id="scoreChart"></canvas>
+      </div>
+      <div class="card" style="grid-column: 1 / -1;">
+        <h3>Recommended next steps</h3>
+        <ol class="rec-list" id="reportRecs" style="list-style:none; padding:0;"></ol>
+      </div>
+    </div>
+
+    <div class="report-footer">
+      <button class="btn-primary" id="restartBtn">Practice again →</button>
+      <button class="btn-secondary" id="changeRoleBtn">Change role</button>
+    </div>
+  </section>
+
+  <div class="footnote">Built for practice, not judgment. Camera and mic never leave your browser except as text/scores sent to the server for scoring.</div>
+</div>
+
+<canvas id="captureCanvas" style="display:none;"></canvas>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
